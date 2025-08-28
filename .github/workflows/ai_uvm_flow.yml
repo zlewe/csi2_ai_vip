@@ -31,7 +31,7 @@ jobs:
       # e.g., "run:spec-analysis" -> "spec-analysis"
       run: |
           STEP_NAME=$(echo ${{ github.event.label.name }} | cut -d':' -f2)
-          python scripts/run_agent.py \
+          python run_agent.py \
             --step $STEP_NAME \
             --pr-title "$PR_TITLE" \
             --pr-body "$PR_BODY"
@@ -45,7 +45,7 @@ jobs:
       if: startsWith(github.event.label.name, 'refine:')
       run: |
           STEP_NAME=$(echo ${{ github.event.label.name }} | cut -d':' -f2)
-          python scripts/run_agent.py \
+          python run_agent.py \
             --step $STEP_NAME \
             --pr-title "$PR_TITLE" \
             --pr-body "$PR_BODY" \
