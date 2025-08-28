@@ -2,13 +2,19 @@ name: AI UVM Development Flow
 
 on:
   pull_request:
-    types: [opened, synchronize, labeled]
+    types: [labeled]
 
 jobs:
-  ai-uvm-task:
+  run-ai-agent:
     runs-on: ubuntu-latest
+    # Only run if a label starting with "run:" was added
+    if: startsWith(github.event.label.name, 'run:') || startsWith(github.event.label.name, 'refine:')
+
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout PR Code
+      uses: actions/checkout@v4
+      with: 
+        ref: ${{ github.event.pull_request.head.ref }}
     
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -19,19 +25,46 @@ jobs:
       run: |
         pip install -r requirements.txt
 
-    - name: Run AI Agent
-      if: contains(github.event.pull_request.labels.*.name, 'run:')
+    - name: Run Specialist Agent
+      if: startsWith(github.event.label.name, 'run:')
+      # The label name itself is used to determine which step to run
+      # e.g., "run:spec-analysis" -> "spec-analysis"
+      run: |
+          STEP_NAME=$(echo ${{ github.event.label.name }} | cut -d':' -f2)
+          python scripts/run_agent.py \
+            --step $STEP_NAME \
+            --pr-title "$PR_TITLE" \
+            --pr-body "$PR_BODY"
       env:
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        # OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         GOOGLE_GENAI_KEY: ${{ secrets.GOOGLE_GENAI_KEY }}
-      run: |
-        label=$(echo "${{ toJson(github.event.pull_request.labels) }}" | jq -r '.[] | select(.name | startswith("run:")) | .name')
-        python run_agent.py $label
+        PR_TITLE: ${{ github.event.pull_request.title }}
+        PR_BODY: ${{ github.event.pull_request.body }}
 
-    - name: Commit changes
+    - name: Refine AI Output
+      if: startsWith(github.event.label.name, 'refine:')
       run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
+          STEP_NAME=$(echo ${{ github.event.label.name }} | cut -d':' -f2)
+          python scripts/run_agent.py \
+            --step $STEP_NAME \
+            --pr-title "$PR_TITLE" \
+            --pr-body "$PR_BODY" \
+            --refine
+      env:
+        # OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        GOOGLE_GENAI_KEY: ${{ secrets.GOOGLE_GENAI_KEY }}
+        PR_TITLE: ${{ github.event.pull_request.title }}
+        PR_BODY: ${{ github.event.pull_request.body }}
+
+    - name: Commit AI Generated Files
+      run: |
+        git config --global user.name 'AI Co-Pilot Bot'
+        git config --global user.email 'bot@users.noreply.github.com'
         git add .
-        git commit -m "AI generated content for $label" || echo "No changes to commit"
-        git push
+        # Check if there are changes to commit
+        if ! git diff-index --quiet HEAD; then
+          git commit -m "AI-GEN: Output for step [${{ github.event.label.name }}]"
+          git push
+        else
+          echo "No changes to commit."
+        fi
