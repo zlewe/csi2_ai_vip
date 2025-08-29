@@ -82,7 +82,7 @@ def write_to_files(response, task):
         # 其他情況（未進入 FILE: 區塊）全部忽略
         # 例如：調試用的 print 輸出
 
-def main(task, pr_title, pr_body, refine=False, knowledge_query=None, json_args=None):
+def main(task, pr_title, pr_body, refine=False, knowledge_query=None, json_args=None, last_comment=None):
     json_dict = {}
     if json_args:
         #json args is string list, convert to dict
@@ -94,6 +94,8 @@ def main(task, pr_title, pr_body, refine=False, knowledge_query=None, json_args=
     arch_content = json_dict.get("arch_content", "")
     refine_feedback = json_dict.get("refine_feedback", "")
     if refine:
+        if refine_feedback == "":
+            refine_feedback = last_comment
         #read feedback from file and original content from file
         with open(refine_feedback, "r") as f:
             feedback_content = f.read()
@@ -140,6 +142,7 @@ if __name__ == "__main__":
     parser.add_argument("--pr-title", required=True, help="Title for the pull request")
     parser.add_argument("--pr-body", required=True, help="Body for the pull request")
     parser.add_argument("--refine", action="store_true", help="Whether to refine the output")
+    parser.add_argument("--last-comment", help="Latest comment of the pull request")
     parser.add_argument("--json_args", help="Additional JSON arguments for the step")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     args = parser.parse_args()
@@ -148,6 +151,6 @@ if __name__ == "__main__":
 
     client = genai.Client(api_key=os.getenv("GOOGLE_GENAI_KEY"))
 
-    main(args.step, args.pr_title, args.pr_body, args.refine, json_args=args.json_args if args.json_args else None)
+    main(args.step, args.pr_title, args.pr_body, args.refine, json_args=args.json_args if args.json_args else None, last_comment=args.last_comment if args.last_comment else None)
 
     print(f"Step '{args.step}' completed.")
