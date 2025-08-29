@@ -8,6 +8,7 @@ jobs:
   run-ai-agent:
     permissions:
       contents: write
+      pull-requests: read
     runs-on: ubuntu-latest
     # Only run if a label starting with "run:" was added
     if: startsWith(github.event.label.name, 'run:') || startsWith(github.event.label.name, 'refine:')
