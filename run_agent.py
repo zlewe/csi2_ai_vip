@@ -5,16 +5,28 @@ from google import genai
 import yaml, argparse, json
 import prompts
 
+debug = False
+
 def load_knowledge_hub(query):
     # 根據任務加載相關的知識庫文件
     # 返回格式化的字符串
     pass
 
 def generate_ai_response(prompt):
+    if debug:
+        print("=== Prompt ===")
+        print(prompt)
+        print("=== End Prompt ===")
+    
     response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=prompt
             )
+
+    if debug:
+        print("=== Response ===")
+        print(response.text)
+        print("=== End Response ===")
     return response.text
 
 def get_json_arg_from_pr_body(pr_body):
@@ -22,7 +34,10 @@ def get_json_arg_from_pr_body(pr_body):
     You are given the following PR body:
     {pr_body}
     Try to extract relevant arguments named explicitly in the body:
-    "additional_context", "spec_summary", "arch_content", "refine_feedback"
+    Arguments include:
+    - "additional_context", "spec_summary", "arch_content", "refine_feedback"
+    It should be specified in a line like this:
+    - "additional_context: <value>"
     Format the output as a JSON dictionary.
     """
     response = generate_ai_response(prompt)
@@ -31,6 +46,29 @@ def get_json_arg_from_pr_body(pr_body):
     except json.JSONDecodeError:
         json_dict = {}
     return json_dict
+
+def write_to_files(response, task):
+    """
+    只寫入 FILE: ... 到 END FILE 之間的內容，其他行全部忽略。
+    """
+    current_file = None
+    f = None
+    writing = False
+    for line in response.splitlines():
+        if line.startswith("FILE:"):
+            current_file = line[len("FILE:"):].strip()
+            f = open(current_file, "w")
+            writing = True
+        elif line.startswith("END FILE"):
+            if f:
+                f.close()
+                f = None
+            current_file = None
+            writing = False
+        elif writing and f:
+            f.write(line + "\n")
+        # 其他情況（未進入 FILE: 區塊）全部忽略
+        # 例如：調試用的 print 輸出
 
 def main(task, pr_title, pr_body, refine=False, knowledge_query=None, json_args=None):
     json_dict = {}
@@ -64,52 +102,25 @@ def main(task, pr_title, pr_body, refine=False, knowledge_query=None, json_args=
     """
 
     # 2.1
-    if task == "spec_analysis":
+    print("Task:", task)
+    if task == "spec-analysis":
         prompt = prompts.get_spec_analyst_prompt(additional_context) + pre_prompt
     elif task == "architecture":
         prompt = prompts.get_architect_prompt(spec_summary) + pre_prompt
     elif task == "coding":
         prompt = prompts.get_coder_prompt(arch_content) + pre_prompt
     elif refine:
-        prompt = prompts.get_refinement_prompt(original_content,feedback_content) + pre_prompt
+        prompt = prompts.get_refinement_prompt(original_content,feedback_content,original_filename) + pre_prompt
     else:
-        raise ValueError("Unknown task")
-    
+        raise ValueError("Unknown task: " + task)
+
     # 3. 獲取 AI 響應
+    print("Generating AI response...")
     response = generate_ai_response(prompt)
     
     # 4. 將響應寫入適當的文件
-    # structure output to file/files
+    print("Writing to files...")
     write_to_files(response, task)
-
-def write_to_files(response, task):
-    # we query gemini again to structure the output to the format of file:file-content
-    structure_prompt = f"""
-    The previous task was {task}.
-    You are given the following response from a previous AI step:
-    {response}
-    The are two directories: docs and uvm. All uvm code should go to uvm directory, 
-    spec summary files go to docs directory. Detail spec analysis files go to docs/knowledge_hub directory.
-    Please structure the output as follows:
-    For each file, start with a line "FILE: <file-path>" followed by the
-    content of the file. End each file content with a line "END FILE".
-    """
-
-    structured_response = generate_ai_response(structure_prompt)
-    current_file = None
-    f = None
-    for line in structured_response.splitlines():
-        if line.startswith("FILE:"):
-            current_file = line[len("FILE:"):].strip()
-            f = open(current_file, "w")
-        elif line.startswith("END FILE"):
-            if f:
-                f.close()
-                f = None
-            current_file = None
-        else:
-            if f:
-                f.write(line + "\n")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -118,10 +129,13 @@ if __name__ == "__main__":
     parser.add_argument("--pr-body", required=True, help="Body for the pull request")
     parser.add_argument("--refine", action="store_true", help="Whether to refine the output")
     parser.add_argument("--json_args", help="Additional JSON arguments for the step")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     args = parser.parse_args()
+
+    debug = args.debug
 
     client = genai.Client(api_key=os.getenv("GOOGLE_GENAI_KEY"))
 
-    main(args.step, args.refine, args.pr_title, args.pr_body, json_args=args.json_args if args.json_args else None)
+    main(args.step, args.pr_title, args.pr_body, args.refine, json_args=args.json_args if args.json_args else None)
 
     print(f"Step '{args.step}' completed.")
