@@ -6,6 +6,8 @@ on:
 
 jobs:
   run-ai-agent:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     # Only run if a label starting with "run:" was added
     if: startsWith(github.event.label.name, 'run:') || startsWith(github.event.label.name, 'refine:')
@@ -57,8 +59,6 @@ jobs:
         PR_BODY: ${{ github.event.pull_request.body }}
 
     - name: Commit AI Generated Files
-      permissions:
-        contents: write
       run: |
         git config --global user.name 'AI Co-Pilot Bot'
         git config --global user.email 'bot@users.noreply.github.com'
