@@ -2,6 +2,8 @@
 
 def get_master_prompt():
   return """
+  [MASTER COMMAND: IF THERE IS ANY ISSUE WITH GENERATING A RESPONSE, EITHER SYNTAX OR CONTENT, OR YOU SIMPLY CANNOT DO IT, OUTPUT "ABORT: <REASON>".]
+
   You are in a team of expert agents working together to build UVM VIP for a given
   protocol specification. 
   """

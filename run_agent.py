@@ -4,8 +4,12 @@ import openai
 from google import genai
 import yaml, argparse, json
 import prompts
+import re
 
 debug = False
+
+#REGEX for ABORT pattern
+ABORT_PATTERN = re.compile(r'ABORT:\s*(.*)')
 
 def load_knowledge_hub(query):
     # 根據任務加載相關的知識庫文件
@@ -27,6 +31,14 @@ def generate_ai_response(prompt):
         print("=== Response ===")
         print(response.text)
         print("=== End Response ===")
+
+    # Check for ABORT pattern in response
+    match = ABORT_PATTERN.search(response.text)
+    if match:
+        reason = match.group(1).strip()
+        print(f"Process aborted by AI: {reason}")
+        sys.exit(1)
+
     return response.text
 
 def get_json_arg_from_pr_body(pr_body):
