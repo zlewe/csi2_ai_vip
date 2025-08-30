@@ -119,7 +119,7 @@ def main(task, pr_title, pr_body, refine=False, knowledge_query=None, json_args=
     print("Task:", task)
     if refine:
         prompt = prompts.get_refinement_prompt(original_content,feedback_content,original_filename) + pre_prompt
-    if task == "spec-analysis":
+    elif task == "spec-analysis":
         prompt = prompts.get_spec_analyst_prompt(additional_context) + pre_prompt
     elif task == "architecture":
         prompt = prompts.get_architect_prompt(spec_summary) + pre_prompt
