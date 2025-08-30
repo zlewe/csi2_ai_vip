@@ -12,7 +12,7 @@ def file_output_instructions():
   return """
     File Output Instructions:
     - The are two directories: docs and uvm. 
-      - All uvm code should go to uvm directory, 
+      - All uvm code should go to uvm directory, don't create extra child dir (depth=1).
       - spec summary markdown files go to docs/spec_summary.md. 
       - Detail spec analysis markdown files go to docs/knowledge_hub directory.
       - verification plan files go to docs/verification_plan.md.
