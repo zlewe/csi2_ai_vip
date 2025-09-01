@@ -12,7 +12,7 @@ def file_output_instructions():
   return """
     File Output Instructions:
     - The are two directories: docs and uvm. 
-      - All uvm code should go to uvm directory, 
+      - All uvm code should go to uvm directory, don't create extra child dir (depth=1).
       - spec summary markdown files go to docs/spec_summary.md. 
       - Detail spec analysis markdown files go to docs/knowledge_hub directory.
       - verification plan files go to docs/verification_plan.md.
@@ -92,5 +92,6 @@ def get_refinement_prompt(original_content, feedback_content, original_filename=
     
     {file_output_instructions()}
 
-    In this task, it is expected that you write to the same files as in the original content: {original_filename}.
+    In this task, it is expected that you only write to the same file as in the original content: {original_filename}.
+    You can write to other files only if absolutely necessary, but avoid it if possible.
     """

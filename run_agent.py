@@ -62,13 +62,18 @@ def get_json_arg_from_pr_body(pr_body):
 def write_to_files(response, task):
     """
     只寫入 FILE: ... 到 END FILE 之間的內容，其他行全部忽略。
+    支援自動建立新目錄或新檔案。
     """
+
     current_file = None
     f = None
     writing = False
     for line in response.splitlines():
         if line.startswith("FILE:"):
             current_file = line[len("FILE:"):].strip()
+            dir_name = os.path.dirname(current_file)
+            if dir_name and not os.path.exists(dir_name):
+                os.makedirs(dir_name, exist_ok=True)
             f = open(current_file, "w")
             writing = True
         elif line.startswith("END FILE"):
@@ -80,9 +85,8 @@ def write_to_files(response, task):
         elif writing and f:
             f.write(line + "\n")
         # 其他情況（未進入 FILE: 區塊）全部忽略
-        # 例如：調試用的 print 輸出
 
-def main(task, pr_title, pr_body, refine=False, knowledge_query=None, json_args=None):
+def main(task, pr_title, pr_body, refine=False, knowledge_query=None, json_args=None, last_comment=None):
     json_dict = {}
     if json_args:
         #json args is string list, convert to dict
@@ -94,6 +98,8 @@ def main(task, pr_title, pr_body, refine=False, knowledge_query=None, json_args=
     arch_content = json_dict.get("arch_content", "")
     refine_feedback = json_dict.get("refine_feedback", "")
     if refine:
+        if refine_feedback == "":
+            refine_feedback = last_comment
         #read feedback from file and original content from file
         with open(refine_feedback, "r") as f:
             feedback_content = f.read()
@@ -115,14 +121,14 @@ def main(task, pr_title, pr_body, refine=False, knowledge_query=None, json_args=
 
     # 2.1
     print("Task:", task)
-    if task == "spec-analysis":
+    if refine:
+        prompt = prompts.get_refinement_prompt(original_content,feedback_content,original_filename) + pre_prompt
+    elif task == "spec-analysis":
         prompt = prompts.get_spec_analyst_prompt(additional_context) + pre_prompt
     elif task == "architecture":
         prompt = prompts.get_architect_prompt(spec_summary) + pre_prompt
     elif task == "coding":
         prompt = prompts.get_coder_prompt(arch_content) + pre_prompt
-    elif refine:
-        prompt = prompts.get_refinement_prompt(original_content,feedback_content,original_filename) + pre_prompt
     else:
         raise ValueError("Unknown task: " + task)
 
@@ -140,6 +146,7 @@ if __name__ == "__main__":
     parser.add_argument("--pr-title", required=True, help="Title for the pull request")
     parser.add_argument("--pr-body", required=True, help="Body for the pull request")
     parser.add_argument("--refine", action="store_true", help="Whether to refine the output")
+    parser.add_argument("--last-comment", help="Latest comment of the pull request")
     parser.add_argument("--json_args", help="Additional JSON arguments for the step")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     args = parser.parse_args()
@@ -148,6 +155,6 @@ if __name__ == "__main__":
 
     client = genai.Client(api_key=os.getenv("GOOGLE_GENAI_KEY"))
 
-    main(args.step, args.pr_title, args.pr_body, args.refine, json_args=args.json_args if args.json_args else None)
+    main(args.step, args.pr_title, args.pr_body, args.refine, json_args=args.json_args if args.json_args else None, last_comment=args.last_comment if args.last_comment else None)
 
     print(f"Step '{args.step}' completed.")

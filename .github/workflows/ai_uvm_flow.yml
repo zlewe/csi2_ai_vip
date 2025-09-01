@@ -8,11 +8,33 @@ jobs:
   run-ai-agent:
     permissions:
       contents: write
+      pull-requests: read
     runs-on: ubuntu-latest
     # Only run if a label starting with "run:" was added
     if: startsWith(github.event.label.name, 'run:') || startsWith(github.event.label.name, 'refine:')
 
     steps:
+    - name: Get latest PR comment via API
+      id: get_comment_step
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const prNumber = context.issue.number;
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: prNumber,
+            per_page: 1,
+            direction: 'desc'
+          });
+
+          if (comments.length > 0) {
+            const latestComment = comments[0];
+            core.setOutput('comment_body', latestComment.body); // Sets the output
+          } else {
+            core.setOutput('comment_body', 'No comments found.');
+          }
+
     - name: Checkout PR Code
       uses: actions/checkout@v4
       with: 
@@ -51,12 +73,14 @@ jobs:
             --step $STEP_NAME \
             --pr-title "$PR_TITLE" \
             --pr-body "$PR_BODY" \
-            --refine
+            --refine \
+            --last-comment "$PR_COMMENT_BODY"
       env:
         # OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         GOOGLE_GENAI_KEY: ${{ secrets.GOOGLE_GENAI_KEY }}
         PR_TITLE: ${{ github.event.pull_request.title }}
         PR_BODY: ${{ github.event.pull_request.body }}
+        PR_COMMENT_BODY: ${{ steps.get_comment_step.outputs.comment_body }} # Step 2 & 3: Use the output to set an env var
 
     - name: Commit AI Generated Files
       run: |
