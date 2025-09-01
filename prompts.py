@@ -92,5 +92,6 @@ def get_refinement_prompt(original_content, feedback_content, original_filename=
     
     {file_output_instructions()}
 
-    In this task, it is expected that you only write to the same file as in the original content: {original_filename}. DO NOT WRITE TO OTHER FILES.
+    In this task, it is expected that you only write to the same file as in the original content: {original_filename}.
+    You can write to other files only if absolutely necessary, but avoid it if possible.
     """

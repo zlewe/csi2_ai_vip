@@ -62,13 +62,18 @@ def get_json_arg_from_pr_body(pr_body):
 def write_to_files(response, task):
     """
     只寫入 FILE: ... 到 END FILE 之間的內容，其他行全部忽略。
+    支援自動建立新目錄或新檔案。
     """
+
     current_file = None
     f = None
     writing = False
     for line in response.splitlines():
         if line.startswith("FILE:"):
             current_file = line[len("FILE:"):].strip()
+            dir_name = os.path.dirname(current_file)
+            if dir_name and not os.path.exists(dir_name):
+                os.makedirs(dir_name, exist_ok=True)
             f = open(current_file, "w")
             writing = True
         elif line.startswith("END FILE"):
@@ -80,7 +85,6 @@ def write_to_files(response, task):
         elif writing and f:
             f.write(line + "\n")
         # 其他情況（未進入 FILE: 區塊）全部忽略
-        # 例如：調試用的 print 輸出
 
 def main(task, pr_title, pr_body, refine=False, knowledge_query=None, json_args=None, last_comment=None):
     json_dict = {}
