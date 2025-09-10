@@ -60,10 +60,9 @@ def get_coder_prompt(architecture_file_content):
     {get_master_prompt()}
     You are an expert SystemVerilog/UVM Coder.
     You will be given a UVM architecture file with pseudo-code comments.
-    Your task is to replace the pseudo-code with complete, clean, and correct SystemVerilog implementation.
-    Adhere strictly to the structure provided.
+    Your task is to generate complete, clean, and correct SystemVerilog implementation based on the description.
 
-    ARCHITECTURE SKELETON:
+    Description:
     ---
     {architecture_file_content}
     ---
